@@ -2,11 +2,11 @@ mod errors;
 mod min_max;
 
 use errors::BoundaryError;
-use min_max::MinMax;
+pub use min_max::MinMax;
 
 use std::cmp::Ordering;
 
-#[derive(Debug, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Limit<T>
 where
     T: MinMax + PartialOrd + Copy,
@@ -17,23 +17,7 @@ where
     equal: bool,
 }
 
-impl<T> Clone for Limit<T>
-where
-    T: MinMax + PartialOrd + Copy,
-{
-    fn clone_from(&mut self, source: &Self) {
-        *self = source.clone()
-    }
-
-    fn clone(&self) -> Self {
-        Self {
-            point: self.point,
-            equal: self.equal,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Top<T>
 where
     T: MinMax + PartialOrd + Copy,
@@ -55,7 +39,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Bottom<T>
 where
     T: MinMax + PartialOrd + Copy,
@@ -95,8 +79,17 @@ where
     }
 }
 
+enum BoundaryCheckResult<T>
+where
+    T: MinMax + PartialOrd + Copy,
+{
+    Ok,
+    TooLow { value: T, bottom: Bottom<T> },
+    TooHigh { value: T, top: Top<T> },
+}
+
 #[derive(Debug)]
-struct Boundary<T>
+pub struct Boundary<T>
 where
     T: MinMax + PartialOrd + Copy,
 {
@@ -117,7 +110,7 @@ where
         }
     }
 
-    fn check(bot: &Limit<T>, top: &Limit<T>) -> Result<(), BoundaryError<T>> {
+    fn check_new_limits(bot: &Limit<T>, top: &Limit<T>) -> Result<(), BoundaryError<T>> {
         match bot.point.partial_cmp(&top.point) {
             Some(ord) => match ord {
                 Ordering::Greater => Ok(()),
@@ -149,7 +142,7 @@ where
         top: Option<Limit<T>>,
     ) -> Result<Self, BoundaryError<T>> {
         if bot.is_some() && top.is_some() {
-            Self::check(bot.as_ref().unwrap(), top.as_ref().unwrap())?;
+            Self::check_new_limits(bot.as_ref().unwrap(), top.as_ref().unwrap())?;
         }
 
         Ok(Self {
@@ -160,7 +153,7 @@ where
     }
 
     pub fn update(&mut self, top: Limit<T>, bot: Limit<T>) -> Result<(), BoundaryError<T>> {
-        Self::check(&bot, &top)?;
+        Self::check_new_limits(&bot, &top)?;
         self.top = Some(top.into());
         self.bot = Some(bot.into());
         Ok(())
@@ -168,7 +161,7 @@ where
 
     pub fn set_top(&mut self, top: Limit<T>) -> Result<(), BoundaryError<T>> {
         if self.bot.is_some() {
-            Self::check(&self.bot.as_ref().unwrap().limit, &top)?;
+            Self::check_new_limits(&self.bot.as_ref().unwrap().limit, &top)?;
         }
         self.top = Some(top.into());
 
@@ -176,10 +169,39 @@ where
     }
     pub fn set_bot(&mut self, bot: Limit<T>) -> Result<(), BoundaryError<T>> {
         if self.top.is_some() {
-            Self::check(&bot, &self.top.as_ref().unwrap().limit)?;
+            Self::check_new_limits(&bot, &self.top.as_ref().unwrap().limit)?;
         }
         self.bot = Some(bot.into());
 
         Ok(())
+    }
+
+    pub fn is_in(&self, value: T) -> BoundaryCheckResult<T> {
+        if let Some(bot) = &self.bot {
+            if bot.limit.equal {
+                if value < bot.limit.point {
+                    return BoundaryCheckResult::TooLow {
+                        value,
+                        bottom: *bot,
+                    };
+                }
+            } else if value <= bot.limit.point {
+                return BoundaryCheckResult::TooLow {
+                    value,
+                    bottom: *bot,
+                };
+            }
+        }
+        if let Some(top) = &self.top {
+            if top.limit.equal {
+                if top.limit.point < value {
+                    return BoundaryCheckResult::TooHigh { value, top: *top };
+                }
+            } else if top.limit.point <= value {
+                return BoundaryCheckResult::TooHigh { value, top: *top };
+            }
+        }
+
+        BoundaryCheckResult::Ok
     }
 }

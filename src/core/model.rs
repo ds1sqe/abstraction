@@ -1,2 +1,4 @@
 #[derive(Debug)]
-struct Model {}
+struct Model {
+    // constrains : Vec<>
+}
