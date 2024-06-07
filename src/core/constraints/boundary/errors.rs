@@ -1,4 +1,5 @@
-use super::{min_max::MinMax, Limit};
+use super::super::MinMax;
+use super::Limit;
 
 #[derive(Debug)]
 pub enum BoundaryError<T>

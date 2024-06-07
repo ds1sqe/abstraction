@@ -1,24 +1,31 @@
 /// represent id have to equal to value
 
-#[derive(Clone, Copy)]
-struct Fixed<V: PartialEq + Copy> {
+#[derive(Debug, Clone, Copy)]
+pub struct Fixed<V: PartialEq + Copy> {
     id: usize,
     value: V,
 }
 
+pub enum FixedCheckError<V: PartialEq + Copy> {
+    NotEqual { fixed: Fixed<V>, value: V },
+}
 pub enum FixedCheckResult<V: PartialEq + Copy> {
     Ok,
-    NotEqual { fixed: Fixed<V>, value: V },
+    Err(FixedCheckError<V>),
 }
 
 impl<V: PartialEq + Copy> Fixed<V> {
+    pub fn new(id: usize, val: V) -> Self {
+        Self { id, value: val }
+    }
+
     pub fn is_in(&self, val: &V) -> FixedCheckResult<V> {
         match self.value.eq(val) {
             true => FixedCheckResult::Ok,
-            false => FixedCheckResult::NotEqual {
+            false => FixedCheckResult::Err(FixedCheckError::NotEqual {
                 fixed: *self,
                 value: *val,
-            },
+            }),
         }
     }
 }

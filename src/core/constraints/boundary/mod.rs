@@ -1,8 +1,7 @@
 mod errors;
-mod min_max;
 
-use errors::BoundaryError;
-pub use min_max::MinMax;
+use super::{min_max::MinMax, Compare};
+pub use errors::BoundaryError;
 
 use std::cmp::Ordering;
 
@@ -79,13 +78,30 @@ where
     }
 }
 
-enum BoundaryCheckResult<T>
+pub enum BoundaryCheckError<T>
+where
+    T: MinMax + PartialOrd + Copy,
+{
+    TooLow { value: T, bottom: Bottom<T> },
+    TooHigh { value: T, top: Top<T> },
+    CannotCmp,
+}
+
+pub enum BoundaryCheckResult<T>
 where
     T: MinMax + PartialOrd + Copy,
 {
     Ok,
-    TooLow { value: T, bottom: Bottom<T> },
-    TooHigh { value: T, top: Top<T> },
+    Err(BoundaryCheckError<T>),
+}
+
+impl<T> From<BoundaryCheckError<T>> for BoundaryCheckResult<T>
+where
+    T: MinMax + PartialOrd + Copy,
+{
+    fn from(value: BoundaryCheckError<T>) -> Self {
+        Self::Err(value)
+    }
 }
 
 #[derive(Debug)]
@@ -178,28 +194,48 @@ where
 
     pub fn is_in(&self, value: T) -> BoundaryCheckResult<T> {
         if let Some(bot) = &self.bot {
-            if bot.limit.equal {
-                if value < bot.limit.point {
-                    return BoundaryCheckResult::TooLow {
-                        value,
-                        bottom: *bot,
-                    };
+            let cmp = match bot.limit.equal {
+                true => Compare::GTE,
+                false => Compare::GT,
+            };
+
+            match value.partial_cmp(&bot.limit.point) {
+                Some(cmp_rst) => {
+                    if !cmp.is_in(cmp_rst) {
+                        // if bot.limit.equal,
+                        //   value < bot.limit.point
+                        // else (not bot.limit.equal)
+                        //   value <= bot.limit.point
+
+                        return BoundaryCheckError::TooLow {
+                            value,
+                            bottom: *bot,
+                        }
+                        .into();
+                    }
                 }
-            } else if value <= bot.limit.point {
-                return BoundaryCheckResult::TooLow {
-                    value,
-                    bottom: *bot,
-                };
-            }
+                None => return BoundaryCheckError::CannotCmp.into(),
+            };
         }
         if let Some(top) = &self.top {
-            if top.limit.equal {
-                if top.limit.point < value {
-                    return BoundaryCheckResult::TooHigh { value, top: *top };
+            let cmp = match top.limit.equal {
+                true => Compare::LTE,
+                false => Compare::LT,
+            };
+
+            match value.partial_cmp(&top.limit.point) {
+                Some(cmp_rst) => {
+                    if !cmp.is_in(cmp_rst) {
+                        // if top.limit.equal,
+                        //   top.limit.point < value
+                        // else (not top.limit.equal)
+                        //   top.limit.point <= value
+
+                        return BoundaryCheckError::TooHigh { value, top: *top }.into();
+                    }
                 }
-            } else if top.limit.point <= value {
-                return BoundaryCheckResult::TooHigh { value, top: *top };
-            }
+                None => return BoundaryCheckError::CannotCmp.into(),
+            };
         }
 
         BoundaryCheckResult::Ok

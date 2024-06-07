@@ -1,12 +1,11 @@
-use std::{
-    cmp::Ordering,
-    ops::{Add, Mul},
-};
+use std::ops::{Add, Mul};
+
+use super::Compare;
 
 /// linear equation relation
 /// ( left * mul + offset ) `cmp` right
-#[derive(Clone, Copy)]
-struct Linear<M, O>
+#[derive(Debug, Clone, Copy)]
+pub struct Linear<M, O>
 where
     M: Mul + Copy,
     O: Add + Copy,
@@ -16,22 +15,19 @@ where
     /// id of right one
     right: usize,
     /// comparison
-    cmp: Ordering,
-    /// allow equal?
-    eq: bool,
+    cmp: Compare,
     /// multiplier
     mul: Option<M>,
     /// offset
     off: Option<O>,
 }
 
-pub enum LinearCheckResult<M, O, T>
+pub enum LinearCheckError<T, M, O>
 where
+    T: Copy + Mul<M, Output = T> + Add<O, Output = T> + PartialOrd,
     M: Mul + Copy,
     O: Add + Copy,
-    T: Copy + Mul<M, Output = T> + Add<O, Output = T> + PartialOrd,
 {
-    Ok,
     NotIn {
         formula: Linear<M, O>,
         /// value of left
@@ -48,12 +44,43 @@ where
     },
 }
 
+pub enum LinearCheckResult<T, M, O>
+where
+    M: Mul + Copy,
+    O: Add + Copy,
+    T: Copy + Mul<M, Output = T> + Add<O, Output = T> + PartialOrd,
+{
+    Ok,
+    Err(LinearCheckError<T, M, O>),
+}
+
+impl<T, M, O> From<LinearCheckError<T, M, O>> for LinearCheckResult<T, M, O>
+where
+    M: Mul + Copy,
+    O: Add + Copy,
+    T: Copy + Mul<M, Output = T> + Add<O, Output = T> + PartialOrd,
+{
+    fn from(value: LinearCheckError<T, M, O>) -> Self {
+        Self::Err(value)
+    }
+}
+
 impl<M, O> Linear<M, O>
 where
     M: Mul + Copy,
     O: Add + Copy,
 {
-    pub fn is_in<T>(&self, left: &T, right: &T) -> LinearCheckResult<M, O, T>
+    pub fn new(left: usize, right: usize, mul: Option<M>, off: Option<O>, cmp: Compare) -> Self {
+        Self {
+            left,
+            right,
+            cmp,
+            mul,
+            off,
+        }
+    }
+
+    pub fn is_in<T>(&self, left: &T, right: &T) -> LinearCheckResult<T, M, O>
     where
         T: Copy + Mul<M, Output = T> + Add<O, Output = T> + PartialOrd,
     {
@@ -66,22 +93,24 @@ where
         }
 
         if let Some(cmp_result) = left_one.partial_cmp(right) {
-            if cmp_result != self.cmp && !(cmp_result.is_eq() && self.eq) {
+            if self.cmp.is_in(cmp_result) {
                 // the point is out of range
-                LinearCheckResult::NotIn {
+                LinearCheckError::NotIn {
                     formula: *self,
                     left: *left,
                     right: *right,
                 }
+                .into()
             } else {
                 LinearCheckResult::Ok
             }
         } else {
-            LinearCheckResult::CannotCompare {
+            LinearCheckError::CannotCompare {
                 formula: *self,
                 left: *left,
                 right: *right,
             }
+            .into()
         }
     }
 }
