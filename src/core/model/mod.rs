@@ -5,17 +5,19 @@ use std::{collections::HashMap, i64};
 use self::errors::ModelErrors;
 
 use super::constraints::{
-    Boundary, Compare, DoubleConstrain, DoubleConstrainCheckError, DoubleConstrainCheckResult,
-    Fixed, Limit, Linear, SingleConstrain, SingleConstrainCheckError, SingleConstrainCheckResult,
+    Compare, DoubleConstrainCheckError, DoubleConstrainCheckResult, SingleConstrainCheckError,
+    SingleConstrainCheckResult,
 };
+
+pub use super::constraints::{Boundary, DoubleConstrain, Fixed, Limit, Linear, SingleConstrain};
 
 /// T : type of variable := i64
 /// M : type of multiplier := i64
 /// O : type of offset(adder) := i64
 #[derive(Debug)]
 pub struct Model {
-    single: HashMap<usize, Vec<SingleConstrain<i64>>>,
-    double: HashMap<(usize, usize), Vec<DoubleConstrain<i64, i64>>>,
+    pub single: HashMap<usize, Vec<SingleConstrain<i64>>>,
+    pub double: HashMap<(usize, usize), Vec<DoubleConstrain<i64, i64>>>,
 }
 
 impl Model {
@@ -26,7 +28,7 @@ impl Model {
         }
     }
 
-    fn add_boundary(
+    pub fn add_boundary(
         &mut self,
         id: usize,
         top: Option<Limit<i64>>,
@@ -43,7 +45,7 @@ impl Model {
         Ok(())
     }
 
-    fn add_fixed(&mut self, id: usize, value: i64) {
+    pub fn add_fixed(&mut self, id: usize, value: i64) {
         if let Some(vec) = self.single.get_mut(&id) {
             vec.push(SingleConstrain::Fixed(Fixed::new(id, value)));
         } else {
@@ -53,7 +55,7 @@ impl Model {
         }
     }
 
-    fn add_linear(
+    pub fn add_linear(
         &mut self,
         left_id: usize,
         right_id: usize,

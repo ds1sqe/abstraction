@@ -11,17 +11,17 @@ where
     T: MinMax + PartialOrd + Copy,
 {
     /// The limit's point
-    point: T,
+    pub point: T,
     /// allow equal
-    equal: bool,
+    pub equal: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Top<T>
+pub struct Top<T>
 where
     T: MinMax + PartialOrd + Copy,
 {
-    limit: Limit<T>,
+    pub limit: Limit<T>,
 }
 
 impl<T> Default for Top<T>
@@ -39,11 +39,11 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Bottom<T>
+pub struct Bottom<T>
 where
     T: MinMax + PartialOrd + Copy,
 {
-    limit: Limit<T>,
+    pub limit: Limit<T>,
 }
 
 impl<T> Default for Bottom<T>
@@ -110,8 +110,8 @@ where
     T: MinMax + PartialOrd + Copy,
 {
     id: usize,
-    top: Option<Top<T>>,
-    bot: Option<Bottom<T>>,
+    pub top: Option<Top<T>>,
+    pub bot: Option<Bottom<T>>,
 }
 
 impl<T> Boundary<T>
@@ -129,7 +129,7 @@ where
     fn check_new_limits(bot: &Limit<T>, top: &Limit<T>) -> Result<(), BoundaryError<T>> {
         match bot.point.partial_cmp(&top.point) {
             Some(ord) => match ord {
-                Ordering::Greater => Ok(()),
+                Ordering::Less => Ok(()),
                 Ordering::Equal => {
                     if bot.equal || top.equal {
                         Err(BoundaryError::FixedPoint(bot.point))
@@ -140,7 +140,7 @@ where
                         })
                     }
                 }
-                Ordering::Less => Err(BoundaryError::InvalidLimits {
+                Ordering::Greater => Err(BoundaryError::InvalidLimits {
                     top: *top,
                     bottom: *bot,
                 }),
@@ -154,8 +154,8 @@ where
 
     pub fn create(
         id: usize,
-        bot: Option<Limit<T>>,
         top: Option<Limit<T>>,
+        bot: Option<Limit<T>>,
     ) -> Result<Self, BoundaryError<T>> {
         if bot.is_some() && top.is_some() {
             Self::check_new_limits(bot.as_ref().unwrap(), top.as_ref().unwrap())?;
@@ -164,7 +164,7 @@ where
         Ok(Self {
             id,
             top: top.map(|t| t.into()),
-            bot: bot.map(|t| t.into()),
+            bot: bot.map(|b| b.into()),
         })
     }
 

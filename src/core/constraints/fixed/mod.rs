@@ -2,8 +2,8 @@
 
 #[derive(Debug, Clone, Copy)]
 pub struct Fixed<V: PartialEq + Copy> {
-    id: usize,
-    value: V,
+    pub id: usize,
+    pub value: V,
 }
 
 pub enum FixedCheckError<V: PartialEq + Copy> {
